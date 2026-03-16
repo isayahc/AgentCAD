@@ -1,0 +1,10 @@
+[project]
+name = "agentcad"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "langchain>=1.2.12",
+    "langchain-community>=0.4.1",
+]

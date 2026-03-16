@@ -1,0 +1,4 @@
+cadquery
+langchain-community==0.4.1
+langchain==1.2.12
+litellm
