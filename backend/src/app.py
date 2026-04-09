@@ -11,8 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from step_generating_agent import run_agent, DATA_DIR, metadata_store
-from shape_metadata import ShapeRecord
+from step_generating_agent import run_agent, DATA_DIR
+from shape_metadata import MetadataStore, ShapeRecord
+
+# Re-use the same metadata store instance as the agent module.
+metadata_store = MetadataStore(DATA_DIR)
 
 app = FastAPI(title="AgentCAD API")
 

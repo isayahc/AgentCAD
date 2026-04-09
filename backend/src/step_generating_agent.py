@@ -3,6 +3,7 @@ import sys
 import base64
 import mimetypes
 import argparse
+import threading
 from pathlib import Path
 import cadquery as cq
 from langchain_community.chat_models import ChatLiteLLM
@@ -20,9 +21,10 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # Metadata store persists a record for each generated shape.
 metadata_store = MetadataStore(DATA_DIR)
 
-# Module-level list used to collect successful generations within a single
+# Thread-local storage used to collect successful generations within a single
 # agent invocation so that we can pair them with the agent's final response.
-_pending_generations: list[dict] = []
+# Using thread-local ensures concurrent requests don't interfere with each other.
+_thread_local = threading.local()
 
 
 @tool
@@ -70,7 +72,9 @@ def generate_arbitrary_step(cadquery_code: str, filename: str = "agent_part.step
 
         # Track this successful generation so metadata can be saved after the
         # agent produces its final description.
-        _pending_generations.append({
+        if not hasattr(_thread_local, "pending_generations"):
+            _thread_local.pending_generations = []
+        _thread_local.pending_generations.append({
             "step_file": safe_name,
             "code": cadquery_code,
         })
@@ -109,7 +113,7 @@ def run_agent(question: str, image_path: str = None) -> str:
 def run_agent_with_tools(question: str, image_path: str = None) -> dict:
     """Run the agent and return response + tool usage info for evaluation."""
     # Clear any leftover pending generations from a previous invocation.
-    _pending_generations.clear()
+    _thread_local.pending_generations = []
 
     agent = build_agent()
     
@@ -149,13 +153,14 @@ def run_agent_with_tools(question: str, image_path: str = None) -> dict:
 
     # Persist a metadata record for every shape that was successfully
     # generated during this agent run.
-    for gen in _pending_generations:
+    pending = getattr(_thread_local, "pending_generations", [])
+    for gen in pending:
         metadata_store.add_record(
             step_file=gen["step_file"],
             description=response_text,
             code=gen["code"],
         )
-    _pending_generations.clear()
+    _thread_local.pending_generations = []
 
     return {
         "response": response_text,
