@@ -6,11 +6,24 @@ import shutil
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from step_generating_agent import run_agent
 
 app = FastAPI(title="AgentCAD API")
+
+# Allow the Next.js frontend (and any localhost origin during development) to
+# call the API without being blocked by the browser's same-origin policy.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class AgentResponse(BaseModel):

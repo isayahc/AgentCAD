@@ -38,7 +38,7 @@ interface ChatPanelProps {
  * - Image paste from clipboard (Ctrl+V / ⌘V)
  * - Image + text together
  */
-export function ChatPanel({ apiBaseUrl = "http://localhost:8000" }: ChatPanelProps) {
+export function ChatPanel({ apiBaseUrl = "/api" }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [attachedImage, setAttachedImage] = useState<File | null>(null);
