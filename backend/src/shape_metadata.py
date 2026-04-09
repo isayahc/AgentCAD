@@ -45,8 +45,11 @@ class MetadataStore:
     def _load(self) -> list[dict]:
         if not self.metadata_file.exists():
             return []
-        with open(self.metadata_file, "r") as fh:
-            return json.load(fh)
+        try:
+            with open(self.metadata_file, "r") as fh:
+                return json.load(fh)
+        except (json.JSONDecodeError, ValueError):
+            return []
 
     def _save(self, records: list[dict]) -> None:
         with open(self.metadata_file, "w") as fh:

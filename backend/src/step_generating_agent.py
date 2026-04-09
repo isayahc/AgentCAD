@@ -157,7 +157,7 @@ def run_agent_with_tools(question: str, image_path: str = None) -> dict:
                     "code": code,
                 })
 
-    response_text = messages[-1].content
+    response_text = messages[-1].content if isinstance(messages[-1].content, str) else str(messages[-1].content)
 
     # Persist a metadata record for every shape that was successfully
     # generated during this agent run.
