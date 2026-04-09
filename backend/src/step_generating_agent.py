@@ -3,10 +3,18 @@ import sys
 import base64
 import mimetypes
 import argparse
+from pathlib import Path
 import cadquery as cq
 from langchain_community.chat_models import ChatLiteLLM
 from langchain.agents import create_agent
 from langchain_core.tools import tool
+
+# Resolve the data directory relative to the repository root.
+# The backend source lives at <repo>/backend/src/, so go two levels up.
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = Path(os.environ.get("STEP_DATA_DIR", str(_REPO_ROOT / "data")))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @tool
 def generate_arbitrary_step(cadquery_code: str, filename: str = "agent_part.step") -> str:
@@ -37,10 +45,21 @@ def generate_arbitrary_step(cadquery_code: str, filename: str = "agent_part.step
             
         model = local_scope["result_model"]
         
-        # Export the model
-        cq.exporters.export(model, filename)
+        # Ensure the filename is just a basename (no path traversal)
+        safe_name = Path(filename).name
+        # Enforce a .step extension so only STEP files are created
+        if not safe_name.lower().endswith((".step", ".stp")):
+            safe_name += ".step"
+        output_path = (DATA_DIR / safe_name).resolve()
+
+        # Double-check the resolved path stays inside DATA_DIR
+        if not output_path.is_relative_to(DATA_DIR.resolve()):
+            return "Execution Failed: Invalid output filename."
+
+        # Export the model into the data directory
+        cq.exporters.export(model, str(output_path))
         
-        return f"Successfully generated CAD model from code and saved to {filename}."
+        return f"Successfully generated CAD model from code and saved to {safe_name}."
         
     except Exception as e:
         # Returning the exact error helps the agent self-correct if it wrote bad syntax
