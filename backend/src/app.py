@@ -37,37 +37,47 @@ class StepFileEntry(BaseModel):
     size: int
 
 
+def _get_available_step_files() -> dict[str, Path]:
+    """Return a mapping of filename → resolved path for STEP files in DATA_DIR."""
+    result: dict[str, Path] = {}
+    for p in DATA_DIR.iterdir():
+        if p.is_file() and p.suffix.lower() in (".step", ".stp"):
+            result[p.name] = p.resolve()
+    return result
+
+
 @app.get("/step-files", response_model=List[StepFileEntry])
 async def list_step_files():
     """Return a list of STEP files stored in the data directory."""
     entries: List[StepFileEntry] = []
-    for p in sorted(DATA_DIR.iterdir()):
-        if p.is_file() and p.suffix.lower() in (".step", ".stp"):
-            entries.append(StepFileEntry(name=p.name, size=p.stat().st_size))
+    for name, path in sorted(_get_available_step_files().items()):
+        entries.append(StepFileEntry(name=name, size=path.stat().st_size))
     return entries
 
 
 @app.get("/step-files/{filename}")
 async def get_step_file(filename: str):
-    """Download / serve a STEP file from the data directory."""
-    # Prevent path traversal: take only the basename
-    safe = Path(filename).name
+    """Download / serve a STEP file from the data directory.
 
-    # Only allow .step / .stp extensions
-    if not safe.lower().endswith((".step", ".stp")):
-        raise HTTPException(status_code=400, detail="Only .step/.stp files are allowed")
+    Only files that actually exist in the data directory and have a
+    ``.step`` / ``.stp`` extension are served.  The filename is looked up
+    against the known set of files (allowlist), so path-traversal is not
+    possible.
+    """
+    available = _get_available_step_files()
 
-    file_path = (DATA_DIR / safe).resolve()
+    # Normalise to a bare filename for the lookup (strip any leading path)
+    requested = Path(filename).name
 
-    # Ensure the resolved path is still inside DATA_DIR
-    if not str(file_path).startswith(str(DATA_DIR.resolve())):
-        raise HTTPException(status_code=400, detail="Invalid filename")
+    if requested not in available:
+        raise HTTPException(status_code=404, detail=f"File not found: {requested}")
 
-    if not file_path.is_file():
-        raise HTTPException(status_code=404, detail=f"File not found: {safe}")
+    # Use the path that was discovered via directory listing – this is fully
+    # controlled by the server and never constructed from user input.
+    resolved = available[requested]
     return FileResponse(
-        path=str(file_path),
-        filename=safe,
+        path=str(resolved),
+        filename=requested,
         media_type="application/octet-stream",
     )
 
