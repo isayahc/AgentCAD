@@ -3,3 +3,6 @@ langchain-community==0.4.1
 langchain==1.2.12
 litellm
 langchain-litellm
+fastapi>=0.115.12
+uvicorn>=0.34.2
+python-multipart>=0.0.22
