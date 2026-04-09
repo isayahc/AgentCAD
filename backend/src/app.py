@@ -12,6 +12,10 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from step_generating_agent import run_agent, DATA_DIR
+from shape_metadata import MetadataStore, ShapeRecord
+
+# Re-use the same metadata store instance as the agent module.
+metadata_store = MetadataStore(DATA_DIR)
 
 app = FastAPI(title="AgentCAD API")
 
@@ -82,8 +86,28 @@ async def get_step_file(filename: str):
     )
 
 
+# ---------------------------------------------------------------------------
+# Shape metadata endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.get("/shape-records", response_model=List[ShapeRecord])
+async def list_shape_records():
+    """Return metadata for all generated shapes (oldest first)."""
+    return metadata_store.list_records()
+
+
+@app.get("/shape-records/{record_id}", response_model=ShapeRecord)
+async def get_shape_record(record_id: str):
+    """Return metadata for a single shape by its unique *record_id*."""
+    record = metadata_store.get_record(record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"Record not found: {record_id}")
+    return record
+
+
 @app.post("/run-agent", response_model=AgentResponse)
-async def run_agent_endpoint(
+def run_agent_endpoint(
     question: str = Form(...),
     image: Optional[UploadFile] = File(None),
 ):

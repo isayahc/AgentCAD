@@ -9,11 +9,16 @@ from langchain_community.chat_models import ChatLiteLLM
 from langchain.agents import create_agent
 from langchain_core.tools import tool
 
+from shape_metadata import MetadataStore
+
 # Resolve the data directory relative to the repository root.
 # The backend source lives at <repo>/backend/src/, so go two levels up.
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = Path(os.environ.get("STEP_DATA_DIR", str(_REPO_ROOT / "data")))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Metadata store persists a record for each generated shape.
+metadata_store = MetadataStore(DATA_DIR)
 
 
 @tool
@@ -121,13 +126,50 @@ def run_agent_with_tools(question: str, image_path: str = None) -> dict:
     messages = result["messages"]
 
     tools_used = []
+    # Collect tool call arguments keyed by tool_call_id so we can match
+    # them with the corresponding tool response messages.
+    tool_call_args: dict[str, dict] = {}
+
     for msg in messages:
         if hasattr(msg, "tool_calls") and msg.tool_calls:
             for tc in msg.tool_calls:
                 tools_used.append(tc["name"])
+                if tc["name"] == "generate_arbitrary_step":
+                    tool_call_args[tc["id"]] = tc["args"]
+
+    # Identify successful STEP generations by matching tool responses
+    # with the tool call arguments collected above.
+    successful_generations: list[dict] = []
+    for msg in messages:
+        tc_id = getattr(msg, "tool_call_id", None)
+        if tc_id and tc_id in tool_call_args:
+            content = msg.content if isinstance(msg.content, str) else ""
+            if content.startswith("Successfully generated"):
+                args = tool_call_args[tc_id]
+                code = args.get("cadquery_code", "")
+                filename = args.get("filename", "agent_part.step")
+                # Reconstruct the safe filename the same way the tool does.
+                safe_name = Path(filename).name
+                if not safe_name.lower().endswith((".step", ".stp")):
+                    safe_name += ".step"
+                successful_generations.append({
+                    "step_file": safe_name,
+                    "code": code,
+                })
+
+    response_text = messages[-1].content if isinstance(messages[-1].content, str) else str(messages[-1].content)
+
+    # Persist a metadata record for every shape that was successfully
+    # generated during this agent run.
+    for gen in successful_generations:
+        metadata_store.add_record(
+            step_file=gen["step_file"],
+            description=response_text,
+            code=gen["code"],
+        )
 
     return {
-        "response": messages[-1].content,
+        "response": response_text,
         "tools_used": tools_used,
     }
 
