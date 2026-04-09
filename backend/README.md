@@ -45,7 +45,7 @@ The robot arm is approximately 237mm tall and has a classic articulated design w
 
 For my valiadtion i used i webpage i [vibe-coded](v0-render-step-files.vercel.app)
 
-![alt text](assets/robot_arm.png)
+![alt text](../assets/robot_arm.png)
 
 ### Additional notes
 - i may build an adapter for other agentic frameworks but for now i will focus on `langchain` and `ADK`
