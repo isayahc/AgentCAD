@@ -1,3 +1,6 @@
 # Generated STEP files
 data/*.step
 data/*.stp
+
+# Generated metadata
+data/shapes_metadata.json

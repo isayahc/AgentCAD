@@ -9,11 +9,20 @@ from langchain_community.chat_models import ChatLiteLLM
 from langchain.agents import create_agent
 from langchain_core.tools import tool
 
+from shape_metadata import MetadataStore
+
 # Resolve the data directory relative to the repository root.
 # The backend source lives at <repo>/backend/src/, so go two levels up.
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = Path(os.environ.get("STEP_DATA_DIR", str(_REPO_ROOT / "data")))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Metadata store persists a record for each generated shape.
+metadata_store = MetadataStore(DATA_DIR)
+
+# Module-level list used to collect successful generations within a single
+# agent invocation so that we can pair them with the agent's final response.
+_pending_generations: list[dict] = []
 
 
 @tool
@@ -58,7 +67,14 @@ def generate_arbitrary_step(cadquery_code: str, filename: str = "agent_part.step
 
         # Export the model into the data directory
         cq.exporters.export(model, str(output_path))
-        
+
+        # Track this successful generation so metadata can be saved after the
+        # agent produces its final description.
+        _pending_generations.append({
+            "step_file": safe_name,
+            "code": cadquery_code,
+        })
+
         return f"Successfully generated CAD model from code and saved to {safe_name}."
         
     except Exception as e:
@@ -92,6 +108,9 @@ def run_agent(question: str, image_path: str = None) -> str:
 
 def run_agent_with_tools(question: str, image_path: str = None) -> dict:
     """Run the agent and return response + tool usage info for evaluation."""
+    # Clear any leftover pending generations from a previous invocation.
+    _pending_generations.clear()
+
     agent = build_agent()
     
     # Structure the content as a list to support multimodal inputs
@@ -126,8 +145,20 @@ def run_agent_with_tools(question: str, image_path: str = None) -> dict:
             for tc in msg.tool_calls:
                 tools_used.append(tc["name"])
 
+    response_text = messages[-1].content
+
+    # Persist a metadata record for every shape that was successfully
+    # generated during this agent run.
+    for gen in _pending_generations:
+        metadata_store.add_record(
+            step_file=gen["step_file"],
+            description=response_text,
+            code=gen["code"],
+        )
+    _pending_generations.clear()
+
     return {
-        "response": messages[-1].content,
+        "response": response_text,
         "tools_used": tools_used,
     }
 
