@@ -49,6 +49,7 @@ export function ChatPanel({ apiBaseUrl = "http://localhost:8000" }: ChatPanelPro
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const msgCounter = useRef(0);
 
   // Auto-scroll to the bottom when new messages arrive.
   useEffect(() => {
@@ -116,7 +117,7 @@ export function ChatPanel({ apiBaseUrl = "http://localhost:8000" }: ChatPanelPro
     if (!trimmed && !attachedImage) return;
 
     const userMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${++msgCounter.current}`,
       role: "user",
       text: trimmed || "(image)",
       imageDataUrl: imagePreview ?? undefined,
@@ -147,7 +148,7 @@ export function ChatPanel({ apiBaseUrl = "http://localhost:8000" }: ChatPanelPro
       const data: { response: string } = await res.json();
 
       const assistantMessage: ChatMessage = {
-        id: `msg-${Date.now()}-resp`,
+        id: `msg-${++msgCounter.current}`,
         role: "assistant",
         text: data.response,
       };
@@ -158,7 +159,7 @@ export function ChatPanel({ apiBaseUrl = "http://localhost:8000" }: ChatPanelPro
       setMessages((prev) => [
         ...prev,
         {
-          id: `msg-${Date.now()}-err`,
+          id: `msg-${++msgCounter.current}`,
           role: "assistant",
           text: `⚠️ Error: ${errText}`,
         },
