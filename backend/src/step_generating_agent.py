@@ -53,7 +53,7 @@ def generate_arbitrary_step(cadquery_code: str, filename: str = "agent_part.step
         output_path = (DATA_DIR / safe_name).resolve()
 
         # Double-check the resolved path stays inside DATA_DIR
-        if not str(output_path).startswith(str(DATA_DIR.resolve())):
+        if not output_path.is_relative_to(DATA_DIR.resolve()):
             return "Execution Failed: Invalid output filename."
 
         # Export the model into the data directory
