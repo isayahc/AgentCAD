@@ -50,9 +50,19 @@ async def list_step_files():
 @app.get("/step-files/{filename}")
 async def get_step_file(filename: str):
     """Download / serve a STEP file from the data directory."""
-    # Prevent path traversal
+    # Prevent path traversal: take only the basename
     safe = Path(filename).name
-    file_path = DATA_DIR / safe
+
+    # Only allow .step / .stp extensions
+    if not safe.lower().endswith((".step", ".stp")):
+        raise HTTPException(status_code=400, detail="Only .step/.stp files are allowed")
+
+    file_path = (DATA_DIR / safe).resolve()
+
+    # Ensure the resolved path is still inside DATA_DIR
+    if not str(file_path).startswith(str(DATA_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     if not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"File not found: {safe}")
     return FileResponse(
