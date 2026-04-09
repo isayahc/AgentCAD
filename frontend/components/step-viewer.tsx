@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Upload, RotateCcw, Maximize2, Cog } from "lucide-react";
 import { PartsPanel } from "@/components/parts-panel";
+import { ChatPanel } from "@/components/chat-panel";
 import {
   type JointDefinition,
   degreesToRadians,
@@ -632,9 +633,12 @@ export function StepViewer() {
           />
         )}
 
+        {/* Chat Panel */}
+        <ChatPanel />
+
         {/* Instructions overlay */}
         {stepData && !isLoading && (
-          <div className="absolute bottom-4 left-4 rounded-lg border border-border bg-card/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur">
+          <div className="absolute bottom-4 left-4 max-w-[calc(100%-26rem)] rounded-lg border border-border bg-card/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur">
             <p>
               <span className="font-medium">Controls:</span> Left click + drag
               to rotate | Right click + drag to pan | Scroll to zoom
