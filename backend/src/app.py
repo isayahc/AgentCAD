@@ -107,7 +107,7 @@ async def get_shape_record(record_id: str):
 
 
 @app.post("/run-agent", response_model=AgentResponse)
-async def run_agent_endpoint(
+def run_agent_endpoint(
     question: str = Form(...),
     image: Optional[UploadFile] = File(None),
 ):
