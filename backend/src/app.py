@@ -3,13 +3,15 @@
 import os
 import tempfile
 import shutil
-from typing import Optional
+from pathlib import Path
+from typing import Optional, List
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from step_generating_agent import run_agent
+from step_generating_agent import run_agent, DATA_DIR
 
 app = FastAPI(title="AgentCAD API")
 
@@ -28,6 +30,36 @@ app.add_middleware(
 
 class AgentResponse(BaseModel):
     response: str
+
+
+class StepFileEntry(BaseModel):
+    name: str
+    size: int
+
+
+@app.get("/step-files", response_model=List[StepFileEntry])
+async def list_step_files():
+    """Return a list of STEP files stored in the data directory."""
+    entries: List[StepFileEntry] = []
+    for p in sorted(DATA_DIR.iterdir()):
+        if p.is_file() and p.suffix.lower() in (".step", ".stp"):
+            entries.append(StepFileEntry(name=p.name, size=p.stat().st_size))
+    return entries
+
+
+@app.get("/step-files/{filename}")
+async def get_step_file(filename: str):
+    """Download / serve a STEP file from the data directory."""
+    # Prevent path traversal
+    safe = Path(filename).name
+    file_path = DATA_DIR / safe
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail=f"File not found: {safe}")
+    return FileResponse(
+        path=str(file_path),
+        filename=safe,
+        media_type="application/octet-stream",
+    )
 
 
 @app.post("/run-agent", response_model=AgentResponse)

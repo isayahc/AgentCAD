@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Upload, RotateCcw, Maximize2, Cog } from "lucide-react";
 import { PartsPanel } from "@/components/parts-panel";
 import { ChatPanel } from "@/components/chat-panel";
+import { StepFileBrowser } from "@/components/step-file-browser";
 import {
   type JointDefinition,
   degreesToRadians,
@@ -519,6 +520,35 @@ export function StepViewer() {
     setJoints((prev) => prev.map((j) => ({ ...j, currentAngle: 0 })));
   }, []);
 
+  /** Load a STEP file from a remote URL (e.g. one served by the backend). */
+  const handleRemoteFile = useCallback(
+    async (fileUrl: string, name: string) => {
+      setIsLoading(true);
+      setError(null);
+      setFileName(name);
+      setSelectedPartId(null);
+      setJoints([]);
+      setShowAnimation(false);
+
+      try {
+        const res = await fetch(fileUrl);
+        if (!res.ok) {
+          throw new Error(`Failed to download ${name} (${res.status})`);
+        }
+        const buffer = await res.arrayBuffer();
+        const result = await loadStepFile(buffer);
+        setStepData(result);
+      } catch (err) {
+        console.error("[StepViewer] Error loading remote STEP file:", err);
+        setError(err instanceof Error ? err.message : "Failed to load STEP file");
+        setStepData(null);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
+
   return (
     <div className="flex h-screen w-full flex-col bg-background">
       {/* Header */}
@@ -636,9 +666,12 @@ export function StepViewer() {
         {/* Chat Panel */}
         <ChatPanel />
 
+        {/* STEP File Browser */}
+        <StepFileBrowser onSelectFile={handleRemoteFile} />
+
         {/* Instructions overlay */}
         {stepData && !isLoading && (
-          <div className="absolute bottom-4 left-4 max-w-[calc(100%-26rem)] rounded-lg border border-border bg-card/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg border border-border bg-card/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur">
             <p>
               <span className="font-medium">Controls:</span> Left click + drag
               to rotate | Right click + drag to pan | Scroll to zoom
