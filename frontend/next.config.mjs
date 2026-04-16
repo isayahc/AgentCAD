@@ -8,9 +8,9 @@ const nextConfig = {
   },
   // Enable Turbopack (default in Next.js 16)
   turbopack: {},
+  // Enable server external packages for WASM
+  serverExternalPackages: ['occt-import-js'],
   experimental: {
-    // Enable server external packages for WASM
-    serverExternalPackages: ['occt-import-js'],
     // Allow the proxy to wait up to 5 minutes for the backend to respond.
     // The CAD agent can be slow (LLM calls + code generation + retries).
     proxyTimeout: 300_000,

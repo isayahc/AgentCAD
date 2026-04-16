@@ -4,3 +4,6 @@ data/*.stp
 
 # Generated metadata
 data/shapes_metadata.json
+
+# Local SQLite dataset store
+data/*.db

@@ -68,6 +68,22 @@ npm run dev
 
 The frontend will be available at **http://localhost:3000**. It automatically proxies API requests to the backend.
 
+### 4. Run frontend + backend together (one command)
+
+From the repository root:
+
+```bash
+chmod +x scripts/dev.sh
+./scripts/dev.sh
+```
+
+This starts:
+
+- FastAPI backend at `http://localhost:8000`
+- Next.js frontend at `http://localhost:3000`
+
+Press `Ctrl+C` to stop both.
+
 ---
 
 ## Usage
@@ -98,6 +114,11 @@ AgentCAD/
 └── requirements.txt # Python dependencies
 ```
 
+Runtime dataset artifacts are stored in `data/`:
+
+- `*.step` / `*.svg` generated CAD outputs
+- `agentcad.db` SQLite database with job + output metadata
+
 ---
 
 ## Environment Variables
@@ -108,6 +129,11 @@ AgentCAD/
 | `STEP_OUTPUT_FILE` | Custom filename for the generated STEP file | auto-generated |
 | `STEP_DATA_DIR` | Directory where STEP files are stored | `data/` |
 | `BACKEND_URL` | Backend URL used by the Next.js proxy | `http://localhost:8000` |
+
+### Dataset endpoints
+
+- `GET /jobs` — list recent generation jobs
+- `GET /jobs/{job_id}` — fetch one job and all captured outputs (query, CadQuery code, STEP/SVG file paths, scores/feedback)
 
 ---
 
