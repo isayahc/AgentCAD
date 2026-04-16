@@ -70,44 +70,51 @@ class JobDetailResponse(BaseModel):
     outputs: List[OutputRecord]
 
 
-def _get_available_step_files() -> dict[str, Path]:
-    """Return a mapping of filename → resolved path for STEP files in DATA_DIR."""
-    result: dict[str, Path] = {}
-    for p in DATA_DIR.iterdir():
-        if p.is_file() and p.suffix.lower() in (".step", ".stp"):
-            result[p.name] = p.resolve()
-    return result
+def _is_under_data_dir(path: Path) -> bool:
+    try:
+        path.resolve().relative_to(DATA_DIR.resolve())
+        return True
+    except ValueError:
+        return False
 
 
-@app.get("/step-files", response_model=List[StepFileEntry])
-async def list_step_files():
-    """Return a list of STEP files stored in the data directory."""
+def _list_step_file_entries_from_db() -> List[StepFileEntry]:
+    """Build STEP file entries from SQLite output records.
+
+    Uses the latest successful output per distinct ``step_file`` and only
+    includes files that still exist on disk.
+    """
     entries: List[StepFileEntry] = []
-    for name, path in sorted(_get_available_step_files().items()):
-        entries.append(StepFileEntry(name=name, size=path.stat().st_size))
+    for step_file, step_path in job_store.list_latest_step_files():
+        filename = Path(step_file).name
+        p = Path(step_path).resolve()
+        if not _is_under_data_dir(p) or not p.is_file():
+            continue
+        entries.append(StepFileEntry(name=filename, size=p.stat().st_size))
+
     return entries
 
 
-@app.get("/step-files/{filename}")
-async def get_step_file(filename: str):
-    """Download / serve a STEP file from the data directory.
+@app.get("/jobs/step-files", response_model=List[StepFileEntry])
+async def list_job_step_files():
+    """Return STEP files from SQLite-backed generation outputs."""
+    return _list_step_file_entries_from_db()
 
-    Only files that actually exist in the data directory and have a
-    ``.step`` / ``.stp`` extension are served.  The filename is looked up
-    against the known set of files (allowlist), so path-traversal is not
-    possible.
-    """
-    available = _get_available_step_files()
 
+@app.get("/jobs/step-files/{filename}")
+async def get_job_step_file(filename: str):
+    """Download / serve a STEP file resolved from SQLite outputs."""
     # Normalise to a bare filename for the lookup (strip any leading path)
     requested = Path(filename).name
 
-    if requested not in available:
+    step_path = job_store.get_latest_step_path(requested)
+    if step_path is None:
         raise HTTPException(status_code=404, detail=f"File not found: {requested}")
 
-    # Use the path that was discovered via directory listing – this is fully
-    # controlled by the server and never constructed from user input.
-    resolved = available[requested]
+    resolved = Path(step_path).resolve()
+    if not _is_under_data_dir(resolved) or not resolved.is_file():
+        raise HTTPException(status_code=404, detail=f"File not found: {requested}")
+
     return FileResponse(
         path=str(resolved),
         filename=requested,

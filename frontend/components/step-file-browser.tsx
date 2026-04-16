@@ -43,8 +43,8 @@ function formatBytes(bytes: number): string {
 }
 
 /**
- * A collapsible panel that lists the STEP files stored in the backend's
- * `/data` directory and lets the user open them in the viewer.
+ * A collapsible panel that lists the STEP files tracked by backend job data
+ * and lets the user open them in the viewer.
  * Also shows shape metadata (description + code) when available.
  */
 export function StepFileBrowser({
@@ -63,7 +63,7 @@ export function StepFileBrowser({
     setError(null);
     try {
       const [filesRes, recordsRes] = await Promise.all([
-        fetch(`${apiBaseUrl}/step-files`),
+        fetch(`${apiBaseUrl}/jobs/step-files`),
         fetch(`${apiBaseUrl}/shape-records`),
       ]);
       if (!filesRes.ok) {
@@ -170,7 +170,7 @@ export function StepFileBrowser({
                         className="flex-1 flex items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted transition-colors group"
                         onClick={() =>
                           onSelectFile?.(
-                            `${apiBaseUrl}/step-files/${encodeURIComponent(file.name)}`,
+                            `${apiBaseUrl}/jobs/step-files/${encodeURIComponent(file.name)}`,
                             file.name,
                           )
                         }
